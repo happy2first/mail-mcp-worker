@@ -41,7 +41,12 @@ export async function protonCall(env, cfgOrAccount, action, payload = {}) {
     response = await stub.fetch("https://proton-session.internal/action", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ account, action, payload }),
+      body: JSON.stringify({
+        account,
+        action,
+        payload,
+        ...(env.PROTON_REQUEST_ORIGIN ? { publicOrigin: env.PROTON_REQUEST_ORIGIN } : {}),
+      }),
       signal: controller.signal,
     });
   } catch (error) {
