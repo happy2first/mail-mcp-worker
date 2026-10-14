@@ -223,6 +223,8 @@ const INTERCEPTED = new Set([
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    // Preserve the trusted ingress origin for outgoing verification links.
+    env = { ...env, PROTON_REQUEST_ORIGIN: url.origin };
     if (url.pathname === "/proton/import" || url.pathname.startsWith("/proton/import/api/")) {
       try {
         const actor = await verifyAccess(request, env);
