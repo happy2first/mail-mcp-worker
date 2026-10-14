@@ -70,7 +70,7 @@ Worker → **Settings → Variables and Secrets** (**not** Workers Builds variab
 | <code>MAIL_PROTON1_PROVIDER</code> | Text | <code>proton</code> |
 | <code>MAIL_PROTON1_LABEL</code> | Text | Optional friendly label |
 | <code>MAIL_PROTON1_EMAIL</code> | Secret | Proton address/verified alias |
-| <code>MAIL_PROTON1_CREDENTIAL</code> | Secret | Current parser requires nonempty; actual password is needed only for password re-authentication, not typed into the extension |
+| <code>MAIL_PROTON1_CREDENTIAL</code> | Secret (optional) | Not needed for normal Chrome extension imports; only for explicit password re-authentication or password + KeySalt fallback |
 | <code>PROTON_SESSION_KEY</code> | Secret | Strong key, e.g. output from <code>openssl rand -base64 32</code> on your trusted terminal |
 | <code>PROTON_VERIFY_BASE_URL</code> | Text (optional) | Uses the current HTTPS request origin; only a fallback for calls without a public origin |
 

@@ -3,6 +3,7 @@ import {
 } from "@protontech/openpgp";
 import { ProtonClient as LegacyProtonClient } from "./client.js";
 import { computeKeyPassword, getSrp } from "./srp.js";
+import { requireProtonLoginPassword } from "./credential-policy.js";
 import { cookieHeaderForUrl, getSetCookieHeaders, mergeSetCookieHeaders, normalizeCookieState } from "./cookies.js";
 import { forward, reply, saveDraft, sendMail } from "./write.js";
 
@@ -188,6 +189,8 @@ export class ProtonClient extends LegacyProtonClient {
   reset() { this.clearSession(); this.humanVerification = null; }
 
   async login({ twoFactorCode } = {}) {
+    // Prevent an absent password from reaching Proton SRP authentication.
+    requireProtonLoginPassword(this.cfg.credential, this.cfg.id);
     const username = this.cfg.email;
     const paths = this.authPaths();
     await this.noteAuthStage("auth_info_request");

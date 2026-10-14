@@ -112,7 +112,10 @@ ProtonClient.prototype.ensureKeys = async function ensureKeysWithImportedSalt() 
 
     const mailboxPassword = Number(this.auth?.PasswordMode || 1) === 2 ? this.cfg.mailboxPassword : this.cfg.credential;
     if (!mailboxPassword) {
-      const error = new Error("该 Proton 账号使用双密码模式，需要配置 MAIL_<ACCOUNT>_MAILBOX_PASSWORD");
+      const account = this.cfg.id.toUpperCase();
+      const name = Number(this.auth?.PasswordMode || 1) === 2
+        ? `MAIL_${account}_MAILBOX_PASSWORD` : `MAIL_${account}_CREDENTIAL`;
+      const error = new Error(`没有可用的浏览器派生解密材料，且未配置 ${name}。请通过 /proton/import 重新导入包含解密材料的浏览器 Session。`);
       error.mailboxPasswordRequired = true;
       throw error;
     }

@@ -3,6 +3,7 @@ import { ProtonClient } from "./client-v2.js";
 import { decryptJson, encryptJson, hasSessionEncryption } from "./session-crypto.js";
 import { suffix, validateImportedSession } from "./session-import.js";
 import { createVerificationUrl } from "./verification-origin.js";
+import { requireProtonLoginPassword } from "./credential-policy.js";
 
 const SESSION_KEY = "proton:session:v2";
 const SESSION_META_KEY = "proton:sessionMeta:v1";
@@ -366,6 +367,8 @@ export class ProtonSession {
       const payload = body?.payload || {};
       if (!account) throw new Error("缺少 Proton account");
       client = this.getClient(account);
+      // Refuse password-only reauthorization before touching the existing durable session.
+      if (action === "reauthorize") requireProtonLoginPassword(client.cfg.credential, client.cfg.id);
       await this.hydrate(client);
 
       let data;
