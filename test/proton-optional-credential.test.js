@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { getAccount, listAccounts } from "../src/mail-config.js";
-import { ProtonSession } from "../src/proton/session.js";
 
 const protonEnv = {
   MAIL_ACCOUNTS: "protone,proton2",
@@ -32,27 +32,23 @@ test("IMAP/SMTP mailbox credentials remain required", () => {
   }
 });
 
-test("manual password reauthorization without credential never erases existing sessions", async () => {
-  const deleted = [], written = [], read = [];
-  const session = new ProtonSession({
-    storage: {
-      async get(key) { read.push(key); return null; },
-      async delete(key) { deleted.push(key); },
-      async put(key, value) { written.push([key, value]); },
-    },
-  }, protonEnv);
-
-  const request = new Request("https://proton-session.internal/action", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ account: "protone", action: "reauthorize" }),
-  });
-  const response = await session.fetch(request);
-  const body = await response.json();
-  assert.equal(response.status, 400);
-  assert.match(body.error, /MAIL_PROTONE_CREDENTIAL/);
-  assert.match(body.error, /proton\/import/);
-  assert.deepEqual(deleted, [], "no session, cookie, or metadata deletion");
-  assert.deepEqual(written, [], "no auth-state changes");
-  assert.deepEqual(read, [], "no persisted secrets read");
+test("reauthorization checks missing passwords before reading or deleting existing sessions", async () => {
+  // Cloudflare Durable Object classes cannot be imported by Node.js's ESM loader.
+  // Inspect the guarded source in this portable unit test; Workers Builds also
+  // runs Wrangler's dry-run deploy to validate the complete bundle.
+  const source = await readFile(new URL("../src/proton/session.js", import.meta.url), "utf8");
+  const fetchBody = source.slice(source.indexOf("  async fetch(request)"));
+  const guard = 'if (action === "reauthorize" && !String(client.cfg.credential || "").trim()) {';
+  const guardIndex = fetchBody.indexOf(guard);
+  const hydrateIndex = fetchBody.indexOf("await this.hydrate(client);");
+  const deletionIndex = fetchBody.indexOf("await this.state.storage.delete(SESSION_KEY);");
+  assert.ok(guardIndex >= 0, "passwordless reauthorize must fail with a clear error");
+  assert.ok(hydrateIndex >= 0 && deletionIndex >= 0);
+  assert.ok(guardIndex < hydrateIndex, "passwordless reauthorize must fail before session hydration");
+  assert.ok(guardIndex < deletionIndex, "passwordless reauthorize must fail before durable session deletion");
+  assert.match(fetchBody, /请使用 \/proton\/import 和浏览器扩展重新导入 Session/);
+  const login = await readFile(new URL("../src/proton/client-v2.js", import.meta.url), "utf8");
+  const loginBody = login.slice(login.indexOf("  async login({ twoFactorCode } = {})"));
+  assert.ok(loginBody.indexOf('if (!String(this.cfg.credential || "").trim())') <
+            loginBody.indexOf('this.raw(paths.info'), "must not reach the Proton login endpoint without a password");
 });
