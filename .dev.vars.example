@@ -23,11 +23,13 @@ MAIL_GMAIL_LABEL=Gmail
 MAIL_GMAIL_EMAIL=your-address@gmail.com
 MAIL_GMAIL_CREDENTIAL=replace-with-google-app-password
 
-# Proton Mail account 1 (EMAIL/CREDENTIAL should be Cloudflare Secrets in production)
+# Proton Mail account 1 (EMAIL should be a Cloudflare Secret in production)
 MAIL_PROTON1_PROVIDER=proton
 MAIL_PROTON1_LABEL=Proton 1
 MAIL_PROTON1_EMAIL=your-address@proton.me
-MAIL_PROTON1_CREDENTIAL=replace-with-proton-password
+# Optional: only for explicit password reauthorization or KeySalt fallback.
+# Normal Proton Chrome extension imports DO NOT require the login password.
+# MAIL_PROTON1_CREDENTIAL=replace-with-proton-password
 # Only for legacy/two-password Proton accounts:
 # MAIL_PROTON1_MAILBOX_PASSWORD=replace-with-mailbox-password
 
@@ -35,7 +37,7 @@ MAIL_PROTON1_CREDENTIAL=replace-with-proton-password
 MAIL_PROTON2_PROVIDER=proton
 MAIL_PROTON2_LABEL=Proton 2
 MAIL_PROTON2_EMAIL=your-second-address@proton.me
-MAIL_PROTON2_CREDENTIAL=replace-with-proton-password
+# MAIL_PROTON2_CREDENTIAL=replace-with-proton-password
 # MAIL_PROTON2_MAILBOX_PASSWORD=replace-with-mailbox-password
 
 # REQUIRED for durable Proton sessions. Configure as a Cloudflare Secret.
