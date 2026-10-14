@@ -6,7 +6,7 @@
 
 ## 推荐方式
 
-1. 部署 [Mail MCP Worker](https://github.com/happy2first/mail-mcp-worker)；配置 <code>PROTON_SESSIONS</code> Durable Object、<code>PROTON_SESSION_KEY</code> Secret、Proton 账号的 <code>MAIL_<ID>_PROVIDER/EMAIL/CREDENTIAL</code>。
+1. 部署 [Mail MCP Worker](https://github.com/happy2first/mail-mcp-worker)；配置 <code>PROTON_SESSIONS</code> Durable Object、<code>PROTON_SESSION_KEY</code> Secret、Proton 账号的 <code>MAIL_<ID>_PROVIDER/EMAIL</code>（<code>CREDENTIAL</code> 可省略，只有手动密码重授权或密码解密兼容路径需要）。
 2. 把 <code>https://你的域名/proton/import</code> 置于 Cloudflare Access 保护下，并在同一 Chrome/Edge 配置文件里完成 Access 与 Proton Mail 登录。
 3. 安装 [protonmail-chrome-extension](https://github.com/happy2first/protonmail-chrome-extension)，配置自己的 HTTPS Worker 域名，点击 **保存并授权**。
 4. 选择 **打开管理页 → 重新检测 → 预览并连接 → 确认导入**，核对当前 Proton 地址与目标 MCP 账号。
