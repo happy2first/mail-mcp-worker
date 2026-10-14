@@ -366,6 +366,10 @@ export class ProtonSession {
       const payload = body?.payload || {};
       if (!account) throw new Error("缺少 Proton account");
       client = this.getClient(account);
+      // Refuse password-only reauthorization before touching the existing durable session.
+      if (action === "reauthorize" && !String(client.cfg.credential || "").trim()) {
+        throw new Error(`未配置 MAIL_${client.cfg.id.toUpperCase()}_CREDENTIAL，无法密码重新授权。请使用 /proton/import 和浏览器扩展重新导入 Session。`);
+      }
       await this.hydrate(client);
 
       let data;
