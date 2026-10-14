@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "personal-mail-mcp",
+  "name": "mail-mcp-worker",
   "main": "src/entry.js",
   "compatibility_date": "2026-08-14",
   "compatibility_flags": [

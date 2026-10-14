@@ -1,5 +1,5 @@
 {
-  "name": "personal-mail-mcp",
+  "name": "mail-mcp-worker",
   "version": "1.5.0",
   "private": true,
   "type": "module",

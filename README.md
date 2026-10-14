@@ -1,295 +1,155 @@
-# personal-mail-mcp
+# Mail MCP Worker
 
-一个运行在 **Cloudflare Workers** 上的多账号 IMAP/SMTP MCP Server，将常见邮箱以统一的 MCP Tools 暴露给 ChatGPT、Claude 等支持 MCP 的客户端。
+[简体中文](README.md) · [English](README.en.md) · [零命令行部署教程](docs/USER-GUIDE.md) · [Proton 浏览器扩展](https://github.com/happy2first/protonmail-chrome-extension)
 
-当前版本采用“**一个 Worker + 多个邮箱账号 + 配置驱动 Provider**”的设计。邮箱地址、授权码、应用专用密码等敏感信息全部通过 Cloudflare Worker Secrets / Variables 注入，不需要写进代码。
+把 QQ、163、Gmail、Proton Mail 或自定义 IMAP/SMTP 邮箱接入自己的 Cloudflare Worker，通过一个受 Cloudflare Access 保护的远程 MCP 服务供 ChatGPT、Claude 等兼容客户端使用。
 
-> 本项目面向个人自托管场景。请不要把真实邮箱密码、授权码、Cloudflare Access JWT、Application Audience 或其他凭证提交到 Git。
+**一个 Worker · 多邮箱账号 · Cloudflare Workers + SQLite Durable Object · Access Managed OAuth。** 推荐的部署方式是 **Fork GitHub → Cloudflare 导入仓库 → 域名 → Access/OAuth → 配置邮箱 → 连接 MCP**。使用此方式无需本地安装 Node.js、Wrangler 或 VPS。
 
-## 功能
+> 这是非官方、自托管项目。Proton 使用非公开 Web API，会受其接口和风控变化影响。请自行评估隐私与账号风险；不要把邮箱密码、授权码、Cookie、Proton 会话或 Secret 提交到 GitHub。
 
-- 一个 MCP Server 管理多个邮箱账号。
-- 内置 Provider：QQ 邮箱、163 邮箱、Gmail、Proton Mail。
-- 支持自定义标准 IMAP/SMTP 邮箱。
-- Proton 使用浏览器 Cookie Session + Durable Object 加密持久化，可读取、搜索、解密正文，并支持当前实现中的附件、状态、移动/复制、草稿、发送、回复、转发和事件增量能力。
-- 支持查询全部账号，并允许单个账号失败时返回部分成功结果。
-- 支持邮件列表、搜索、正文、附件、已读/星标状态、移动/复制、文件夹管理、发送、回复、转发、草稿等能力。
-- 每封邮件返回 `messageRef`，后续操作可优先使用该引用。
-- **明确禁用删除能力**：不提供删除邮件或删除文件夹 Tool，也阻止移动/复制到 Trash、Deleted、废纸篓等删除类目录。
-- 使用 Cloudflare Access JWT 保护 `/mcp` 和 `/health`。
+## 能做什么
 
-## 设计概览
+- 同时管理多个邮箱：QQ / 163 / Gmail / Proton / 自定义 IMAP/SMTP。
+- 列出账号与文件夹、查询和搜索邮件、获取正文和附件；支持已读/星标、移动/复制、草稿、发送、回复、转发等操作。
+- Proton 由 Web API 访问，浏览器会话及解密材料由 Durable Object **加密持久化**，不依赖 Proton Mail Bridge。
+- **不提供删除类 MCP 工具**，且禁止移动或复制到 Trash、Deleted 等删除文件夹。
+- 对单个账号失败支持部分成功；写操作需指定账号。
+- 通过 Cloudflare Access 保护 MCP、健康检查和 Proton 管理接口；Worker 再校验 Access JWT。
 
-```text
-MCP Client
-   │
-   │ HTTPS / MCP Streamable HTTP
-   ▼
-Cloudflare Access
-   │  Cf-Access-Jwt-Assertion
-   ▼
-personal-mail-mcp Worker
-   ├─ MCP Tool layer
-   ├─ account / provider config
-   ├─ cloudflare:sockets → IMAP
-   └─ cloudflare:sockets → SMTP
-```
+**重要区别：** [Mail MCP Worker](https://github.com/happy2first/mail-mcp-worker) 是必须部署的 **服务端**；[Proton Mail Chrome Extension](https://github.com/happy2first/protonmail-chrome-extension) 是可选的 **浏览器扩展**，专门帮助导入已登录的 Proton 会话。扩展既不是 MCP Server，也不需要单独部署到 Cloudflare。仅使用 QQ、163、Gmail 时不必安装扩展。
 
-Cloudflare Access 负责客户端身份与边缘访问控制；Worker 还会再次校验 Access JWT 的 issuer、audience 和签名。
+## 五步部署到 Cloudflare（推荐，零命令行）
 
-QQ/163/Gmail/custom 使用 IMAP/SMTP 授权码或应用专用密码；Proton 直接使用 Proton Web API，不依赖 Proton Mail Bridge。Gmail OAuth2 与 POP3 尚未实现。
+[**逐个按钮的中文操作指南 →**](docs/USER-GUIDE.md) · [Detailed English guide →](docs/QUICK-START.en.md)
 
-## 支持的邮箱 Provider
+### 1. Fork 仓库并连接 Cloudflare
 
-| Provider | IMAP | SMTP | 凭证 |
-|---|---|---|---|
-| `qq` | `imap.qq.com:993` TLS | `smtp.qq.com:465` TLS | QQ 邮箱授权码 |
-| `163` | `imap.163.com:993` TLS | `smtp.163.com:465` TLS | 163 邮箱客户端授权码 |
-| `gmail` | `imap.gmail.com:993` TLS | `smtp.gmail.com:465` TLS | Google App Password |
-| `proton` | Proton Web API | Proton Web API | Browser Session Bundle；扩展可直接导入浏览器派生解密密钥 |
-| `custom` | 自定义 | 自定义 | 邮箱服务商提供的 IMAP/SMTP 凭证 |
+1. 打开本仓库，点击右上角 **Fork**，将项目复制到自己的 GitHub 账号。建议保留仓库名 <code>mail-mcp-worker</code>。
+2. 打开 [Cloudflare Dashboard](https://dash.cloudflare.com/) → **Workers & Pages → Create application → Import a repository**（界面文字可能随版本变化）。
+3. 授权 Cloudflare 访问你的 GitHub，选择刚刚 Fork 的仓库，生产分支选 <code>main</code>。
+4. **Worker 名称必须与仓库里的 <code>wrangler.jsonc</code> 的 <code>name</code> 一致，即 <code>mail-mcp-worker</code>**。根目录留空或 <code>/</code>。
+5. 如需手动填写构建设置，**Build command**：<code>npm run check</code>；**Deploy command**：<code>npm run deploy</code>。Cloudflare 构建系统会安装项目依赖。保存并执行首次部署。
+6. 部署后在该 Worker 的 **Bindings / Durable Objects** 确认存在 <code>PROTON_SESSIONS</code> → <code>ProtonSession</code>；仓库的 <code>migrations: v1 / new_sqlite_classes</code> 会在新 Worker 首次部署时创建 SQLite 命名空间，无须在 Dashboard 手工建数据库或绑定。
 
-163 邮箱连接时会发送 IMAP `ID` 命令，以兼容网易邮箱的客户端识别要求。
+> 如果你正从旧版 <code>personal-mail-mcp</code> 迁移：**不要先删除旧 Worker**。新旧 Worker 并行部署验证；旧 Worker 的 Secrets 和 Durable Object 不会自动复制到新 Worker。确认全部功能后才切换域名。详见[迁移说明](docs/USER-GUIDE.md#从旧版-worker-迁移)。
 
-## 环境要求
+### 2. 绑定自己的域名
 
-- Node.js 20+（建议使用当前 LTS）
-- Cloudflare 账号
-- 已启用 IMAP/SMTP 的邮箱账号
-- Wrangler 4.x
-- 一个 Cloudflare Access Application，用于保护 Worker
+进入新 Worker → **Settings → Domains & Routes → Add → Custom Domain**，例如 <code>mail.example.com</code>（域名须由当前 Cloudflare 账号管理）。
 
-## 安装
+你的最终地址会是：
 
-```bash
-git clone https://github.com/happy2first/personal-mail-mcp.git
-cd personal-mail-mcp
+- MCP：<code>https://mail.example.com/mcp</code>
+- Proton 管理页：<code>https://mail.example.com/proton/import</code>
+- 健康检查：<code>https://mail.example.com/health</code>
+
+建议生产环境关闭不受同等 Access 保护的 <code>workers.dev</code> 与预览地址，以免出现额外入口。仓库当前配置允许 <code>workers.dev</code>，**不要以为绑定域名后该入口就自动受保护**。
+
+### 3. 配置 Cloudflare Access 和 ChatGPT OAuth
+
+1. Cloudflare → **Zero Trust → Access controls → Applications → Add an application → Self-hosted**。
+2. 添加你完整的 MCP 自定义主机名，例如 <code>mail.example.com</code>，**保护整个主机名**，不要只保护 <code>/mcp</code>（Proton 管理页也需要保护）。
+3. 建立仅允许你自己的邮箱或指定身份登录的 **Allow** 策略，拒绝其他访客。
+4. 在该应用的高级设置启用 **Managed OAuth**，在 **Allowed redirect URIs** 中添加：
+
+   ~~~text
+   https://chatgpt.com/connector/oauth/*
+   ~~~
+
+   这**只是 ChatGPT 允许的 OAuth 回调地址**，不是 MCP 地址。若要连接其他客户端，按它们的回调要求补充允许列表。
+5. 复制 Access 应用的 **Application Audience (AUD) Tag**；同时记下团队域名，例如 <code>https://your-team.cloudflareaccess.com</code>。
+
+Worker 验证 <code>cf-access-jwt-assertion</code> 的签名、issuer 和 audience。生产环境不可对 <code>/mcp</code>、<code>/health</code> 或 <code>/proton/import</code> 设置 Access bypass。
+
+### 4. 配置运行时 Variables 与 Secrets
+
+Cloudflare → 新 Worker → **Settings → Variables and Secrets**。注意是 **Worker 运行时**配置，不是 Builds 里的 Build variables。最小示例：一个 QQ 邮箱和一个 Proton 邮箱（只配置实际需要的账号；名称里的 ID 要与 <code>MAIL_ACCOUNTS</code> 一致）。
+
+| 名称 | 类型 | 示例或说明 |
+| --- | --- | --- |
+| <code>TEAM_DOMAIN</code> | Text | <code>https://your-team.cloudflareaccess.com</code> |
+| <code>POLICY_AUD</code> | Text 或 Secret | 第 3 步的 AUD Tag |
+| <code>MAIL_ACCOUNTS</code> | Text | <code>qq,proton1</code> |
+| <code>MAIL_QQ_PROVIDER</code> | Text | <code>qq</code> |
+| <code>MAIL_QQ_EMAIL</code> | **Secret** | QQ 邮箱地址 |
+| <code>MAIL_QQ_CREDENTIAL</code> | **Secret** | QQ 邮箱开启 IMAP/SMTP 后取得的授权码，非登录密码 |
+| <code>MAIL_PROTON1_PROVIDER</code> | Text | <code>proton</code> |
+| <code>MAIL_PROTON1_LABEL</code> | Text（可选） | 账号显示名称 |
+| <code>MAIL_PROTON1_EMAIL</code> | **Secret** | Proton 邮箱地址或已验证别名 |
+| <code>MAIL_PROTON1_CREDENTIAL</code> | **Secret** | 当前配置解析器要求非空；如要使用密码重授权则填写真实凭证，扩展导入本身不要求在扩展中输入密码 |
+| <code>PROTON_SESSION_KEY</code> | **Secret** | 随机 32 字节或更高强度的保密密钥，例如可信终端执行 <code>openssl rand -base64 32</code> |
+| <code>PROTON_VERIFY_BASE_URL</code> | Text | <code>https://mail.example.com</code>（不带斜杠） |
+
+163/Gmail 与 QQ 的配置模式相同，Provider 分别为 <code>163</code>、<code>gmail</code>，凭证使用服务商专用授权码 / App Password。更多账号、Custom Provider 与完整变量表见[部署教程](docs/USER-GUIDE.md)和[示例配置](.dev.vars.example)。
+
+**注意：** 如果 <code>MAIL_ACCOUNTS=qq,163main,proton2</code>，变量前缀分别为 <code>MAIL_QQ_</code>、<code>MAIL_163MAIN_</code>、<code>MAIL_PROTON2_</code>；<code>all</code> 不能作为账号 ID。<code>PROTON_SESSION_KEY</code> 应长期安全备份，更换密钥后旧的加密会话无法解密。
+
+### 5. 连接邮箱、导入 Proton、添加到 ChatGPT
+
+**普通 IMAP/SMTP 邮箱：** 在 QQ、163 或 Gmail 网站先启用相应协议并取得授权码；将邮箱地址与授权码分别保存为 Secret。运行 MCP 工具 <code>mail_list_accounts</code>、<code>mail_test_connection</code> 验证配置与连通性。
+
+**Proton 邮箱：**
+
+1. 新 Worker 的域名和 Access 配置就绪后，访问 <code>https://mail.example.com/proton/import</code>，通过 Access 登录。
+2. 安装 [Proton Mail Chrome Extension](https://github.com/happy2first/protonmail-chrome-extension#安装与升级)，在同一 Chrome/Edge 账号资料中登录 [Proton Mail](https://mail.proton.me)。
+3. 在扩展的 **MCP 服务地址** 填你的域名，点 **保存并授权 → 打开管理页**；返回 Proton 标签页，点 **重新检测 → 预览并连接 → 确认导入**。
+4. 管理页确认 Session、Cookie 和解密材料状态；测试读取邮件正文。**测试自动续期**会真实刷新会话，只在需要时手动触发。
+5. 多个 Proton 账号逐一导入。扩展导入的是浏览器 Session Bundle v3，不是 Proton 密码；导入、检测、长期续期仍可能受 Proton API 改动和风控影响。
+
+**连接 ChatGPT：** 在 ChatGPT 的设置或插件/应用连接流程里添加自定义远程 MCP 服务器，地址为 <code>https://mail.example.com/mcp</code>，完成 Cloudflare Access 的 OAuth 授权。先尝试 <code>mail_list_accounts</code>、<code>mail_list_messages</code> 或 <code>mail_search_messages</code>。如果你使用的 ChatGPT 套餐或客户端不支持自定义远程 MCP，应改用支持该能力的客户端。
+
+## 常用 MCP 工具
+
+| 工具 | 用途 |
+| --- | --- |
+| <code>mail_list_accounts</code> / <code>mail_test_connection</code> | 配置检查、连接测试 |
+| <code>mail_list_folders</code> / <code>mail_folder_status</code> | 文件夹与状态 |
+| <code>mail_list_messages</code> / <code>mail_search_messages</code> | 列表与搜索 |
+| <code>mail_get_message</code> / <code>mail_get_attachment</code> | 正文与附件 |
+| <code>mail_set_state</code> / <code>mail_transfer</code> | 已读/星标、移动/复制 |
+| <code>mail_manage_folder</code> | 创建、重命名等非删除类管理 |
+| <code>mail_save_draft</code> / <code>mail_send</code> / <code>mail_reply</code> / <code>mail_forward</code> | 写草稿、发信和回复 |
+| <code>mail_proton_auth</code> / <code>mail_proton_poll_changes</code> | Proton 认证状态、人工重授权、增量事件 |
+
+邮件发送、回复、转发属于会真实影响邮箱的操作；应确认目标账号与收件人。服务不支持删除邮件或文件夹。
+
+## 常见问题
+
+| 问题 | 处理 |
+| --- | --- |
+| 部署报 Worker 名称不一致 | Dashboard Worker 名与 <code>wrangler.jsonc → name</code> 必须匹配。 |
+| <code>PROTON_SESSIONS</code> 不存在 | 核对 Wrangler 中 Durable Object binding、<code>ProtonSession</code> 导出与首次 migration；查看部署日志。 |
+| 提示缺少 <code>TEAM_DOMAIN</code> / <code>POLICY_AUD</code> | 在 **运行时** Variables 设置；核对 Access 团队地址和 AUD，不要填错应用。 |
+| 登录页面循环或 MCP 返回 Access 错误 | 确认整个主机名被同一个 Access 应用保护；核对 Managed OAuth 回调及允许的登录身份。 |
+| 邮箱配置失败 | <code>MAIL_ACCOUNTS</code> 中每个账号都要对应完整的 <code>MAIL_<ID>_PROVIDER/EMAIL/CREDENTIAL</code>。 |
+| Proton 导入失败 | 先登录管理页，再核对浏览器资料、Proton 标签页、账号邮箱/别名，检查扩展诊断日志；参阅[扩展排错](https://github.com/happy2first/protonmail-chrome-extension#常见问题)。 |
+| Proton Session 有效但正文不可读 | 检查浏览器派生解密材料是否通过验证；导入成功不等于全部邮件解密成功。 |
+| GitHub 提交后没有自动部署 | 查看 Worker → **Settings → Builds** 的 GitHub 连接、生产分支、构建/部署命令与日志。 |
+
+## 本地开发（可选）
+
+~~~sh
+git clone https://github.com/happy2first/mail-mcp-worker.git
+cd mail-mcp-worker
 npm install
-```
-
-本地配置可以从示例文件开始：
-
-```bash
 cp .dev.vars.example .dev.vars
-```
-
-`.dev.vars` 已加入 `.gitignore`，不要提交真实凭证。
-
-## Cloudflare Access 配置
-
-Worker 需要两个 Access 相关变量：
-
-```text
-TEAM_DOMAIN=https://<your-team>.cloudflareaccess.com
-POLICY_AUD=<your-access-application-audience-tag>
-```
-
-其中：
-
-- `TEAM_DOMAIN` 是 Cloudflare Zero Trust Team Domain 的 origin，不要填写 `/cdn-cgi/access/certs` 路径。
-- `POLICY_AUD` 是对应 Access Application 的 Application Audience (AUD) Tag。
-
-对于 MCP 客户端，可根据需要在 Cloudflare Access 中配置 Managed OAuth 或其他适合的 Access Policy。Worker 本身只信任 Cloudflare Access 签发并通过校验的 JWT。
-
-## 邮箱账号配置
-
-### 1. 账号列表
-
-必须设置：
-
-```text
-MAIL_ACCOUNTS=qq,163main,gmail
-```
-
-账号 ID 代表“具体邮箱账号实例”，不是 Provider。一个 Provider 可以配置多个账号，例如：
-
-```text
-MAIL_ACCOUNTS=163main,163backup,qq,gmail
-```
-
-账号 ID 只能使用英文字母、数字和下划线；`all` 为保留字。
-
-### 2. 内置 Provider
-
-每个账号至少需要：
-
-```text
-MAIL_<ID>_PROVIDER=qq|163|gmail|proton
-MAIL_<ID>_LABEL=显示名称
-MAIL_<ID>_EMAIL=邮箱地址
-MAIL_<ID>_CREDENTIAL=授权码、应用专用密码或 Proton 登录/解密密码
-```
-
-建议：
-
-- `MAIL_<ID>_PROVIDER`、`MAIL_<ID>_LABEL` 可使用普通 Variable。
-- `MAIL_<ID>_EMAIL` 建议使用 Secret。
-- `MAIL_<ID>_CREDENTIAL` **必须使用 Secret**。
-
-QQ 示例：
-
-```text
-MAIL_QQ_PROVIDER=qq
-MAIL_QQ_LABEL=QQ邮箱
-MAIL_QQ_EMAIL=your-address@example.com
-MAIL_QQ_CREDENTIAL=replace-with-app-password
-```
-
-163 示例：
-
-```text
-MAIL_163MAIN_PROVIDER=163
-MAIL_163MAIN_LABEL=163邮箱
-MAIL_163MAIN_EMAIL=your-address@example.com
-MAIL_163MAIN_CREDENTIAL=replace-with-client-authorization-code
-```
-
-Gmail 示例：
-
-```text
-MAIL_GMAIL_PROVIDER=gmail
-MAIL_GMAIL_LABEL=Gmail
-MAIL_GMAIL_EMAIL=your-address@gmail.com
-MAIL_GMAIL_CREDENTIAL=replace-with-google-app-password
-```
-
-Gmail 当前使用 App Password，不使用 Google OAuth。
-
-### 3. Proton Provider
-
-Proton 账号至少配置：
-
-```text
-MAIL_PROTONE_PROVIDER=proton
-MAIL_PROTONE_LABEL=Proton
-MAIL_PROTONE_EMAIL=your-address@proton.me
-MAIL_PROTONE_CREDENTIAL=your-proton-password
-```
-
-如果不使用扩展导入浏览器派生解密密钥，双密码模式可额外配置：
-
-```text
-MAIL_PROTONE_MAILBOX_PASSWORD=your-mailbox-password
-```
-
-浏览器会话不通过密码登录导入。推荐使用 `protonmail-chrome-extension` 生成 **Proton Browser Session Bundle v3**：扩展读取同一 UID 的结构化 `AUTH-*`、`REFRESH-*`、`Session-Id` 与辅助 Cookie，并从当前 Proton Mail 的加密持久会话中恢复 Proton 已派生的 `keyPassword`。扩展不会读取用户原始登录密码；Worker 会验证该解密材料确实能解锁当前 Proton 用户密钥，再用 `PROTON_SESSION_KEY` 加密保存到 Durable Object。
-
-管理页：`/proton/import`。默认使用扩展自动导入；扩展会先预览本次 Bundle，用户确认后才上传。预览/导出的 JSON 会主动排除 `keyPassword`；高级故障排查区仍保留普通 Session Cookie + 专用 REFRESH Cookie + KeySalt JSON。
-
-`x-pm-uid`、`x-pm-appversion`、`x-pm-apiversion` 等协议 Header 由客户端/Worker 自动生成，不属于需要手工导入的秘密凭证。
-
-### 4. Custom Provider
-
-```text
-MAIL_WORK_PROVIDER=custom
-MAIL_WORK_LABEL=工作邮箱
-MAIL_WORK_EMAIL=your-address@example.com
-MAIL_WORK_CREDENTIAL=replace-with-app-password
-MAIL_WORK_IMAP_HOST=imap.example.com
-MAIL_WORK_IMAP_PORT=993
-MAIL_WORK_IMAP_SECURITY=tls
-MAIL_WORK_SMTP_HOST=smtp.example.com
-MAIL_WORK_SMTP_PORT=465
-MAIL_WORK_SMTP_SECURITY=tls
-```
-
-`*_SECURITY` 只允许：
-
-- `tls`：连接建立时直接 TLS。
-- `starttls`：明文连接后升级 TLS。
-
-SMTP 端口 25 被显式禁止。
-
-## 推荐的 Cloudflare 配置方式
-
-非敏感配置可以在 Worker Dashboard 中设置 Variables；敏感配置使用 Secrets。
-
-例如：
-
-```bash
-npx wrangler secret put MAIL_QQ_EMAIL
-npx wrangler secret put MAIL_QQ_CREDENTIAL
-npx wrangler secret put MAIL_163MAIN_EMAIL
-npx wrangler secret put MAIL_163MAIN_CREDENTIAL
-npx wrangler secret put POLICY_AUD
-```
-
-`TEAM_DOMAIN`、`MAIL_ACCOUNTS`、Provider、Label 等也可以通过 Dashboard Variables 配置。
-
-`wrangler.jsonc` 使用 `keep_vars: true`，部署代码时不会要求把这些运行环境配置写入仓库。
-
-## MCP Tools
-
-主要 Tool：
-
-| Tool | 类型 | 用途 |
-|---|---|---|
-| `mail_list_accounts` | 只读 | 列出已配置账号，不返回邮箱地址或凭证 |
-| `mail_test_connection` | 只读 | 测试 IMAP/SMTP 登录 |
-| `mail_list_folders` | 只读 | 列出邮箱文件夹 |
-| `mail_folder_status` | 只读 | 查看文件夹状态和配额 |
-| `mail_list_messages` | 只读 | 获取邮件列表 |
-| `mail_search_messages` | 只读 | 搜索邮件 |
-| `mail_get_message` | 只读 | 获取邮件正文和元数据 |
-| `mail_get_attachment` | 只读 | 获取附件 |
-| `mail_set_state` | 写入 | 修改已读、星标等状态 |
-| `mail_transfer` | 写入 | 移动/复制邮件，删除类目标被禁止 |
-| `mail_manage_folder` | 写入 | 创建、重命名等文件夹操作，不提供删除 |
-| `mail_send` | 写入 | 发送邮件 |
-| `mail_reply` | 写入 | 回复邮件 |
-| `mail_forward` | 写入 | 转发邮件 |
-| `mail_save_draft` | 写入 | 保存草稿 |
-
-查询类 Tool 不传 `account` 时通常默认 `all`。发送、文件夹管理等写操作必须明确指定账号。
-
-## 本地检查与部署
-
-语法检查：
-
-```bash
 npm run check
-```
-
-部署：
-
-```bash
-npx wrangler login
+npx wrangler deploy --dry-run --outdir dist
 npm run deploy
-```
+~~~
 
-部署完成后：
+本地 <code>.dev.vars</code> 包含敏感配置，不得提交。正式部署的运行时变量在 Cloudflare Dashboard 中配置；仓库保留 <code>keep_vars: true</code>。
 
-- `/`：公共服务状态入口（具体响应以当前代码为准）。
-- `/health`：受 Cloudflare Access 保护的健康检查。
-- `/mcp`：MCP Streamable HTTP 入口。
+## 安全与限制
 
-## 安全说明
+- 仅向可信 Access 用户开放所有接口；不建议依赖一个未保护的 <code>workers.dev</code> URL。
+- 不在代码、README、Issue、截图或日志中暴露邮箱授权码、Proton Cookie、RefreshToken、<code>keyPassword</code>、Session 加密密钥。
+- Proton 浏览器扩展上传经过用户确认的敏感派生材料；用户应自行审核代码并确保服务地址属于自己。
+- Gmail 当前是 IMAP/SMTP + App Password，**不支持 Gmail OAuth2**；也不支持 POP3。
+- Cloudflare 出站 TCP 与服务商 IMAP/SMTP 风控可能导致连接失败；Proton 私有 API 更可能发生兼容性变化。
+- 密钥遗失或重置、Worker/Durable Object 重建后须重新导入 Proton Session。
 
-1. **不要提交真实凭证。** `.dev.vars`、`.env` 等文件应始终保持在 Git 之外。
-2. **邮箱授权码不等于登录密码，但仍应按密码级别保护。** 泄露后应立即在邮箱服务商处撤销并重新生成。
-3. **Cloudflare Access 是第一层边界，Worker JWT 校验是第二层边界。** 不建议直接暴露一个未受 Access 保护的 Worker。
-4. Tool 返回不会主动暴露账号密码或授权码；连接日志也不应记录认证命令内容。
-5. 项目刻意不实现删除类操作，但写操作仍可能改变邮箱状态，部署前请自行审查权限范围。
-6. 如果凭证曾经被提交进 Git 历史，仅删除当前文件不够，应先撤销凭证，再重写 Git 历史后再公开仓库。
+[完整部署和迁移步骤](docs/USER-GUIDE.md) · [扩展使用教程](https://github.com/happy2first/protonmail-chrome-extension) · [技术接口说明](https://github.com/happy2first/protonmail-chrome-extension/blob/main/docs/server-integration.md)
 
-## 已知限制
-
-- Gmail OAuth2 尚未实现。
-- Proton 使用非公开 Web API，接口、Cookie 结构或版本要求变化时可能需要更新适配；不依赖 Proton Mail Bridge。
-- 不支持 POP3。
-- Cloudflare Workers 到部分邮箱服务商的 TCP/TLS 行为可能受网络环境或服务商安全策略影响。
-- 不同邮箱服务商对 IMAP 扩展、文件夹命名和限流策略存在差异。
-
-## 开源与贡献
-
-欢迎提交 Issue / Pull Request，尤其是：
-
-- 新邮箱 Provider 适配。
-- OAuth2 邮箱认证。
-- 更完善的 IMAP/SMTP 兼容性测试。
-- MCP Tool 权限分级与更细粒度的只读模式。
-- Cloudflare Access / Managed OAuth 的部署文档完善。
-
-## License
-
-MIT
+**License:** MIT。欢迎提交可复现的问题和改进，但请先移除所有真实凭证。

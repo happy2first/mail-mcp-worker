@@ -240,7 +240,7 @@ export default {
     if (verify) return verify;
 
     if (url.pathname === "/") {
-      return Response.json({ ok: true, service: "personal-mail-mcp", version: "1.5.0", protonLifecycle: "v4-extension-bundle" });
+      return Response.json({ ok: true, service: "mail-mcp-worker", version: "1.5.0", protonLifecycle: "v4-extension-bundle" });
     }
     if (url.pathname !== "/mcp" || request.method !== "POST") return legacyWorker.fetch(request, env, ctx);
 
