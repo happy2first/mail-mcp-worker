@@ -72,7 +72,7 @@ Worker → **Settings → Variables and Secrets** (**not** Workers Builds variab
 | <code>MAIL_PROTON1_EMAIL</code> | Secret | Proton address/verified alias |
 | <code>MAIL_PROTON1_CREDENTIAL</code> | Secret | Current parser requires nonempty; actual password is needed only for password re-authentication, not typed into the extension |
 | <code>PROTON_SESSION_KEY</code> | Secret | Strong key, e.g. output from <code>openssl rand -base64 32</code> on your trusted terminal |
-| <code>PROTON_VERIFY_BASE_URL</code> | Text | <code>https://mail.example.com</code> |
+| <code>PROTON_VERIFY_BASE_URL</code> | Text (optional) | Uses the current HTTPS request origin; only a fallback for calls without a public origin |
 
 For 163 or Gmail, use IDs such as <code>163main</code> or <code>gmail</code>, providers <code>163</code> or <code>gmail</code>, and corresponding <code>MAIL_163MAIN_*</code> or <code>MAIL_GMAIL_*</code> values. Custom IMAP/SMTP requires <code>_IMAP_HOST/PORT/SECURITY</code> and <code>_SMTP_HOST/PORT/SECURITY</code>. See [.dev.vars.example](../.dev.vars.example).
 
