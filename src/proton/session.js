@@ -3,6 +3,7 @@ import { ProtonClient } from "./client-v2.js";
 import { decryptJson, encryptJson, hasSessionEncryption } from "./session-crypto.js";
 import { suffix, validateImportedSession } from "./session-import.js";
 import { createVerificationUrl } from "./verification-origin.js";
+import { requireProtonLoginPassword } from "./credential-policy.js";
 
 const SESSION_KEY = "proton:session:v2";
 const SESSION_META_KEY = "proton:sessionMeta:v1";
@@ -367,9 +368,7 @@ export class ProtonSession {
       if (!account) throw new Error("缺少 Proton account");
       client = this.getClient(account);
       // Refuse password-only reauthorization before touching the existing durable session.
-      if (action === "reauthorize" && !String(client.cfg.credential || "").trim()) {
-        throw new Error(`未配置 MAIL_${client.cfg.id.toUpperCase()}_CREDENTIAL，无法密码重新授权。请使用 /proton/import 和浏览器扩展重新导入 Session。`);
-      }
+      if (action === "reauthorize") requireProtonLoginPassword(client.cfg.credential, client.cfg.id);
       await this.hydrate(client);
 
       let data;
