@@ -77,7 +77,7 @@ Cloudflare → 新 Worker → **Settings → Variables and Secrets**。注意是
 | <code>MAIL_PROTON1_PROVIDER</code> | Text | <code>proton</code> |
 | <code>MAIL_PROTON1_LABEL</code> | Text（可选） | 账号显示名称 |
 | <code>MAIL_PROTON1_EMAIL</code> | **Secret** | Proton 邮箱地址或已验证别名 |
-| <code>MAIL_PROTON1_CREDENTIAL</code> | **Secret** | 当前配置解析器要求非空；如要使用密码重授权则填写真实凭证，扩展导入本身不要求在扩展中输入密码 |
+| <code>MAIL_PROTON1_CREDENTIAL</code> | **Secret（可省略）** | 仅需手动密码重新授权或使用密码+KeySalt 兼容解密时配置；推荐浏览器扩展导入完整 Session，无需保存 Proton 登录密码 |
 | <code>PROTON_SESSION_KEY</code> | **Secret** | 随机 32 字节或更高强度的保密密钥，例如可信终端执行 <code>openssl rand -base64 32</code> |
 | <code>PROTON_VERIFY_BASE_URL</code> | Text（**可省略**） | 默认从 HTTPS 请求域名自动生成验证码链接；仅作内部调用后备地址 |
 

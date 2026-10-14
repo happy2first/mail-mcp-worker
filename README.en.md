@@ -71,7 +71,7 @@ Worker → **Settings → Variables and Secrets**, **not** the build-variable se
 | <code>MAIL_PROTON1_PROVIDER</code> | Text | <code>proton</code> |
 | <code>MAIL_PROTON1_LABEL</code> | Text (optional) | Friendly display name |
 | <code>MAIL_PROTON1_EMAIL</code> | **Secret** | Proton mailbox address or verified alias |
-| <code>MAIL_PROTON1_CREDENTIAL</code> | **Secret** | The current account parser requires a nonempty value; password re-authorization requires a real credential, while browser import itself does not ask for your password in the extension |
+| <code>MAIL_PROTON1_CREDENTIAL</code> | **Secret (optional)** | Only for explicit password re-authorization or password + KeySalt fallback. Browser Session Bundle v3 import does not need the Proton login password |
 | <code>PROTON_SESSION_KEY</code> | **Secret** | Strong random encryption key, e.g. <code>openssl rand -base64 32</code> on a trusted machine |
 | <code>PROTON_VERIFY_BASE_URL</code> | Text (**optional**) | Verification links use the incoming request origin; only needed as a fallback for calls without a public request |
 

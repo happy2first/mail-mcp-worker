@@ -1,4 +1,5 @@
 import "./netease-imap-id.js";
+import { resolveAccountCredential } from "./proton/credential-policy.js";
 
 const PROVIDERS = {
   qq: {
@@ -62,7 +63,8 @@ export function getAccount(env, id) {
   if (!["qq", "163", "gmail", "custom", "proton"].includes(provider)) throw new Error(`不支持的邮箱 Provider：${provider}`);
 
   const email = must(env[`${prefix}_EMAIL`], `${prefix}_EMAIL`);
-  const credential = must(env[`${prefix}_CREDENTIAL`], `${prefix}_CREDENTIAL`);
+  // Browser-imported Proton sessions do not need a stored password.
+  const credential = resolveAccountCredential(env, prefix, provider);
   const label = String(env[`${prefix}_LABEL`] || PROVIDERS[provider]?.label || actualId).trim();
 
   if (provider === "proton") {

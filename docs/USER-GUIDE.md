@@ -83,7 +83,7 @@
 | <code>MAIL_PROTON1_PROVIDER</code> | Text | <code>proton</code> |
 | <code>MAIL_PROTON1_LABEL</code> | Text | 可选，例如 <code>Proton Personal</code> |
 | <code>MAIL_PROTON1_EMAIL</code> | Secret | Proton 邮箱或已验证别名 |
-| <code>MAIL_PROTON1_CREDENTIAL</code> | Secret | 当前服务端配置要求非空；仅扩展导入不在扩展中填写登录密码，密码重授权另需真实凭证 |
+| <code>MAIL_PROTON1_CREDENTIAL</code> | Secret（可省略） | 浏览器扩展正常导入不需要；仅使用手动密码重授权或密码+KeySalt 兼容路径时才需要 |
 | <code>PROTON_SESSION_KEY</code> | Secret | 在可信环境执行 <code>openssl rand -base64 32</code> 得到的随机密钥 |
 | <code>PROTON_VERIFY_BASE_URL</code> | Text（可省略） | 自动从当前请求域名生成验证链接；无外部请求的特殊内部调用才需后备 URL |
 
