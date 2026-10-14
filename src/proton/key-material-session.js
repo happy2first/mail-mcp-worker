@@ -6,8 +6,8 @@ const list = (value) => Array.isArray(value) ? value : [];
 const bool = (value) => value === true || value === 1;
 
 const originalAuthStatus = ProtonSession.prototype.authStatus;
-ProtonSession.prototype.authStatus = async function authStatusWithKeyMaterial(client) {
-  const status = await originalAuthStatus.call(this, client);
+ProtonSession.prototype.authStatus = async function authStatusWithKeyMaterial(client, requestOrigin = "") {
+  const status = await originalAuthStatus.call(this, client, requestOrigin);
   const cookieAuth = Boolean(client.auth?.cookies);
   const keySaltCount = normalizeKeySalts({ KeySalts: client.auth?.KeySalts })?.length || 0;
   const browserKeyPassword = typeof client.auth?.KeyPassword === "string" && client.auth.KeyPassword.length > 0;
