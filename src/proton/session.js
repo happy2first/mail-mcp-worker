@@ -2,6 +2,7 @@ import { getAccount } from "../mail-config.js";
 import { ProtonClient } from "./client-v2.js";
 import { decryptJson, encryptJson, hasSessionEncryption } from "./session-crypto.js";
 import { suffix, validateImportedSession } from "./session-import.js";
+import { createVerificationUrl } from "./verification-origin.js";
 
 const SESSION_KEY = "proton:session:v2";
 const SESSION_META_KEY = "proton:sessionMeta:v1";
@@ -45,13 +46,11 @@ function twoFactorError() {
   return error;
 }
 
-function verificationUrl(env, account, state) {
-  const base = String(env.PROTON_VERIFY_BASE_URL || "").replace(/\/$/, "");
-  if (!base || !state) return null;
-  return `${base}/proton/verify/${encodeURIComponent(account)}/${encodeURIComponent(state)}`;
+function verificationUrl(env, account, state, requestOrigin = "") {
+  return createVerificationUrl({ requestOrigin, fallbackOrigin: env.PROTON_VERIFY_BASE_URL, account, state });
 }
 
-function publicError(error, env, account, verifyState) {
+function publicError(error, env, account, verifyState, requestOrigin = "") {
   return {
     error: error instanceof Error ? error.message : String(error),
     ...(Number(error?.protonCode) ? { protonCode: Number(error.protonCode) } : {}),
@@ -69,7 +68,7 @@ function publicError(error, env, account, verifyState) {
     ...(error?.humanVerification ? {
       humanVerificationRequired: true,
       humanVerificationMethods: error.humanVerification.methods || [],
-      verificationUrl: verificationUrl(env, account, verifyState),
+      verificationUrl: verificationUrl(env, account, verifyState, requestOrigin),
       verificationState: verifyState || null,
     } : {}),
   };
@@ -252,7 +251,7 @@ export class ProtonSession {
     return state;
   }
 
-  async authStatus(client) {
+  async authStatus(client, requestOrigin = "") {
     const risk = await this.readRisk();
     const authState = await this.readAuthState();
     const meta = await this.readSessionMeta();
@@ -283,7 +282,7 @@ export class ProtonSession {
       humanVerification: hv ? {
         pending: Boolean(hv.challengeToken && !hv.completedToken),
         methods: hv.methods || [],
-        verificationUrl: verificationUrl(this.env, client.cfg.id, hv.state),
+        verificationUrl: verificationUrl(this.env, client.cfg.id, hv.state, requestOrigin),
         createdAt: hv.createdAt || null,
       } : null,
     };
@@ -358,8 +357,10 @@ export class ProtonSession {
     let account = "";
     let action = "";
     let verifyState = null;
+    let requestOrigin = "";
     try {
       const body = await request.json();
+      requestOrigin = typeof body?.publicOrigin === "string" ? body.publicOrigin : "";
       account = String(body?.account || "").trim();
       action = String(body?.action || "").trim();
       const payload = body?.payload || {};
@@ -369,7 +370,7 @@ export class ProtonSession {
 
       let data;
       if (action === "authStatus") {
-        data = await this.authStatus(client);
+        data = await this.authStatus(client, requestOrigin);
       } else if (action === "resetRisk") {
         await this.state.storage.delete(RISK_KEY);
         data = { success: true, account, riskReset: true };
@@ -517,7 +518,7 @@ export class ProtonSession {
         verifyState = await this.rememberHumanVerification(error, client).catch(() => null);
       }
       console.error("ProtonSession:", error?.message || String(error));
-      const details = publicError(error, this.env, account, verifyState);
+      const details = publicError(error, this.env, account, verifyState, requestOrigin);
       const status = Number(error?.protonCode) === 2028 ? 429 : 400;
       return Response.json({ ok: false, ...details }, { status });
     }
