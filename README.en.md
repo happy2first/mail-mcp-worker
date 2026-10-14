@@ -73,7 +73,7 @@ Worker → **Settings → Variables and Secrets**, **not** the build-variable se
 | <code>MAIL_PROTON1_EMAIL</code> | **Secret** | Proton mailbox address or verified alias |
 | <code>MAIL_PROTON1_CREDENTIAL</code> | **Secret** | The current account parser requires a nonempty value; password re-authorization requires a real credential, while browser import itself does not ask for your password in the extension |
 | <code>PROTON_SESSION_KEY</code> | **Secret** | Strong random encryption key, e.g. <code>openssl rand -base64 32</code> on a trusted machine |
-| <code>PROTON_VERIFY_BASE_URL</code> | Text | <code>https://mail.example.com</code> without trailing slash |
+| <code>PROTON_VERIFY_BASE_URL</code> | Text (**optional**) | Verification links use the incoming request origin; only needed as a fallback for calls without a public request |
 
 To enable 163 or Gmail, use the same fields and set <code>PROVIDER=163</code> or <code>PROVIDER=gmail</code>, with the provider's own application password/authorization code. More fields, account IDs, custom SMTP/IMAP and security notes: [full guide](docs/QUICK-START.en.md) / [.dev.vars.example](.dev.vars.example).
 

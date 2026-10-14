@@ -85,7 +85,7 @@
 | <code>MAIL_PROTON1_EMAIL</code> | Secret | Proton 邮箱或已验证别名 |
 | <code>MAIL_PROTON1_CREDENTIAL</code> | Secret | 当前服务端配置要求非空；仅扩展导入不在扩展中填写登录密码，密码重授权另需真实凭证 |
 | <code>PROTON_SESSION_KEY</code> | Secret | 在可信环境执行 <code>openssl rand -base64 32</code> 得到的随机密钥 |
-| <code>PROTON_VERIFY_BASE_URL</code> | Text | <code>https://mail.example.com</code> |
+| <code>PROTON_VERIFY_BASE_URL</code> | Text（可省略） | 自动从当前请求域名生成验证链接；无外部请求的特殊内部调用才需后备 URL |
 
 其他：对于 <code>MAIL_ACCOUNTS=163main,gmail</code>，必须建立 <code>MAIL_163MAIN_PROVIDER=163</code>、<code>MAIL_GMAIL_PROVIDER=gmail</code> 及对应 EMAIL/CREDENTIAL。Custom Provider 还需配置 <code>_IMAP_HOST/PORT/SECURITY</code> 和 <code>_SMTP_HOST/PORT/SECURITY</code>。完整变量语法见[示例文件](../.dev.vars.example)。
 

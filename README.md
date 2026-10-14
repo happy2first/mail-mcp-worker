@@ -79,7 +79,7 @@ Cloudflare → 新 Worker → **Settings → Variables and Secrets**。注意是
 | <code>MAIL_PROTON1_EMAIL</code> | **Secret** | Proton 邮箱地址或已验证别名 |
 | <code>MAIL_PROTON1_CREDENTIAL</code> | **Secret** | 当前配置解析器要求非空；如要使用密码重授权则填写真实凭证，扩展导入本身不要求在扩展中输入密码 |
 | <code>PROTON_SESSION_KEY</code> | **Secret** | 随机 32 字节或更高强度的保密密钥，例如可信终端执行 <code>openssl rand -base64 32</code> |
-| <code>PROTON_VERIFY_BASE_URL</code> | Text | <code>https://mail.example.com</code>（不带斜杠） |
+| <code>PROTON_VERIFY_BASE_URL</code> | Text（**可省略**） | 默认从 HTTPS 请求域名自动生成验证码链接；仅作内部调用后备地址 |
 
 163/Gmail 与 QQ 的配置模式相同，Provider 分别为 <code>163</code>、<code>gmail</code>，凭证使用服务商专用授权码 / App Password。更多账号、Custom Provider 与完整变量表见[部署教程](docs/USER-GUIDE.md)和[示例配置](.dev.vars.example)。
 
