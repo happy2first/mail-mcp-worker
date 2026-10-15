@@ -8,6 +8,14 @@
 
 > 这是非官方、自托管项目。Proton 使用非公开 Web API，会受其接口和风控变化影响。请自行评估隐私与账号风险；不要把邮箱密码、授权码、Cookie、Proton 会话或 Secret 提交到 GitHub。
 
+## ChatGPT 连接账户识别
+
+新增只读、无参数的 `get_profile`，按 [OpenAI Profile Tool 规范](https://developers.openai.com/plugins/build/auth#support-multiple-accounts) 声明 `outputSchema`、只读 annotations 和 `_meta["openai/profile"]: true`，返回 `structuredContent` 及相同 JSON 文本。
+
+一个 Profile 对应一个已验证的 **Cloudflare Access 身份**，不是单个邮箱。该连接仍通过 `account` 参数访问已配置邮箱。ID 从固定命名空间 `mail-mcp-worker:profile:v1` 与原始 JWT `sub` 的 JSON 数组经 SHA-256 派生；同一身份刷新 Token、重新授权、换对话、增删邮箱或重连 Proton 后保持不变。请保持派生规则不变，并避免将旧 subject 分配给其他身份。仅返回已验证身份中的可用 `name`、`email`，不读取邮箱凭证或 Proton 会话；缺少有效 `sub` 时拒绝返回 Profile。无需新增配置或依赖。
+
+部署后刷新 ChatGPT 插件工具，调用 `get_profile` 记录 ID；用相同 Access 身份重新授权，并在新对话中核对 ID 和连接数量。无需先删除全部连接。此工具帮助识别相同身份，不保证客户端自动合并历史重复连接。
+
 ## 能做什么
 
 - 同时管理多个邮箱：QQ / 163 / Gmail / Proton / 自定义 IMAP/SMTP。

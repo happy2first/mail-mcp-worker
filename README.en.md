@@ -8,6 +8,14 @@ Self-host a remote MCP email service on **Cloudflare Workers** and connect QQ Ma
 
 > Unofficial, self-hosted project. Proton integration uses private Web APIs and may break with upstream changes. Never commit mailbox passwords, authorization codes, Cookies, derived keys, or Worker Secrets to GitHub.
 
+## ChatGPT connection identity
+
+The authenticated, read-only `get_profile` tool accepts an empty argument object and declares `outputSchema`, read-only annotations and `_meta["openai/profile"]: true`, following the [OpenAI profile tool contract](https://developers.openai.com/plugins/build/auth#support-multiple-accounts). It returns the profile in `structuredContent` and the same JSON in text content.
+
+A profile represents the verified **Cloudflare Access identity**, not an individual mailbox. Existing mailbox selection through `account` is unchanged. Its ID is SHA-256 of the JSON array containing the fixed namespace `mail-mcp-worker:profile:v1` and the exact verified JWT `sub`. Keep this derivation unchanged and never reassign an old subject to another identity. IDs survive token refresh, reconnection, new conversations, mailbox configuration changes and Proton reauthorization. Available name/email claims are display metadata only. Missing or blank subjects fail without a fallback ID. The tool does not access mailbox credentials or Proton sessions and needs no new configuration or dependencies.
+
+After deployment, refresh the plugin tools in ChatGPT, call `get_profile` and record its ID. Reconnect with the same Access identity and compare the ID and connection count in a new conversation. There is no need to delete all existing connections first. Profile information helps account recognition; automatic merging of historical duplicates is not guaranteed.
+
 ## Capabilities and companion extension
 
 - Unified account/folder listings, message search, content and attachment reads; mail state updates, move/copy, drafts, send/reply/forward.

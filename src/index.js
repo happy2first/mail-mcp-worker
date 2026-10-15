@@ -329,8 +329,35 @@ async function searchMessagesForAccount(env, cfg, p) {
   });
 }
 
-function createServer(env) {
+// Each server closes over the verified identity of this HTTP request only.
+function createServer(env, identity) {
   const s = new McpServer({ name: "personal-mail-mcp", version: "1.2.0" });
+
+  s.registerTool("get_profile", {
+    description: "Return the profile represented by this request's verified Access credentials. The opaque ID remains stable across token refresh, reconnection and display-metadata changes.",
+    inputSchema: z.strictObject({}),
+    outputSchema: z.strictObject({
+      id: z.string().min(1).regex(/\S/).describe("Opaque profile identifier, unique within this app and unchanged across token refresh, reconnection and display-metadata changes. Never reassigned to another profile."),
+      name: z.string().optional().describe("Display name for the authenticated profile."),
+      email: z.string().optional().describe("Email address for display; not used as the profile identity."),
+      nickname: z.string().optional().describe("A useful label that helps users distinguish connected profiles."),
+    }),
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    _meta: { "openai/profile": true },
+  }, async () => {
+    if (typeof identity.sub !== "string" || !identity.sub.trim()) {
+      return { isError: true, content: [{ type: "text", text: "access_denied: Valid Access subject required for profile identity." }] };
+    }
+    // Freeze this namespace/algorithm: changing it would change existing profile IDs.
+    // Hash the exact subject, never a token, email, grant or mailbox account ID.
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(["mail-mcp-worker:profile:v1", identity.sub])));
+    const profile = {
+      id: `prf_${Buffer.from(digest).toString("hex")}`,
+      ...(typeof identity.name === "string" && identity.name.trim() ? { name: identity.name } : {}),
+      ...(typeof identity.email === "string" && identity.email.trim() ? { email: identity.email } : {}),
+    };
+    return { isError: false, structuredContent: profile, content: [{ type: "text", text: JSON.stringify(profile) }] };
+  });
 
   s.registerTool("mail_list_accounts", {
     description: "[只读] 列出当前 Worker 已配置的邮箱账号及 Provider，不返回邮箱地址、密码或授权码。",
@@ -805,7 +832,7 @@ export default {
       });
     }
 
-    return createMcpHandler(() => createServer(env), {
+    return createMcpHandler(() => createServer(env, identity), {
       route: "/mcp",
       responseMode: "json",
     })(request, env, ctx);
